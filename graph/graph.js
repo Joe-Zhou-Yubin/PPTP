@@ -101,12 +101,19 @@ function detectClusters(nodes, edges) {
 }
 
 // ============================================================
-//  BRIDGE DETECTION
+//  BRIDGE DETECTION (second-degree ratio)
 // ============================================================
 function detectBridges(nodes, edges, connectionCount) {
-  // A "bridge" person connects two otherwise separate clusters.
-  // Simple heuristic: find nodes whose removal increases the number
-  // of connected components. For performance, just check high-degree nodes.
+  // A bridge connects people from different social circles.
+  // We measure this via second-degree ratio:
+  //   bridgeScore = unique2ndDegree / 1stDegree
+  // High score = your friends don't know each other (you bridge groups)
+  // Low score = your friends are all interconnected (you're inside a clique)
+  //
+  // We also factor in clustering coefficient (how connected your neighbors are):
+  //   clusterCoeff = actual edges among neighbors / possible edges among neighbors
+  // A low clustering coefficient + high degree = strong bridge signal.
+
   const adj = {};
   nodes.forEach((n) => (adj[n.id] = new Set()));
   edges.forEach(({ source, target }) => {
@@ -116,37 +123,48 @@ function detectBridges(nodes, edges, connectionCount) {
     adj[t]?.add(s);
   });
 
-  const baseClusters = detectClusters(nodes, edges).length;
-  const bridges = [];
+  const scores = [];
 
-  // Only check nodes with 2+ connections (potential bridges)
-  const candidates = nodes.filter((n) => (connectionCount[n.id] || 0) >= 2);
+  nodes.forEach((n) => {
+    const degree = connectionCount[n.id] || 0;
+    if (degree < 2) return; // need at least 2 connections to bridge
 
-  candidates.forEach((n) => {
-    // Count components without this node
-    const visited = new Set([n.id]);
-    let components = 0;
-    nodes.forEach((other) => {
-      if (visited.has(other.id)) return;
-      components++;
-      const queue = [other.id];
-      visited.add(other.id);
-      while (queue.length > 0) {
-        const cur = queue.shift();
-        adj[cur]?.forEach((nb) => {
-          if (!visited.has(nb) && nb !== n.id) {
-            visited.add(nb);
-            queue.push(nb);
-          }
-        });
-      }
+    const neighbors = adj[n.id];
+
+    // 2nd degree: people reachable through your friends, excluding yourself and direct friends
+    const secondDegree = new Set();
+    neighbors.forEach((friend) => {
+      adj[friend]?.forEach((fof) => {
+        if (fof !== n.id && !neighbors.has(fof)) {
+          secondDegree.add(fof);
+        }
+      });
     });
-    if (components > baseClusters) {
-      bridges.push(n.id);
+
+    const secondDegreeRatio = secondDegree.size / degree;
+
+    // Clustering coefficient: how many of your neighbors are connected to each other
+    let neighborEdges = 0;
+    const neighborArr = Array.from(neighbors);
+    for (let i = 0; i < neighborArr.length; i++) {
+      for (let j = i + 1; j < neighborArr.length; j++) {
+        if (adj[neighborArr[i]]?.has(neighborArr[j])) {
+          neighborEdges++;
+        }
+      }
     }
+    const possibleNeighborEdges = (degree * (degree - 1)) / 2;
+    const clusterCoeff = possibleNeighborEdges > 0 ? neighborEdges / possibleNeighborEdges : 0;
+
+    // Bridge score: high 2nd-degree ratio + low clustering = strong bridge
+    const bridgeScore = secondDegreeRatio * (1 - clusterCoeff);
+
+    scores.push({ name: n.id, bridgeScore, secondDegreeRatio, clusterCoeff, degree });
   });
 
-  return bridges;
+  // Sort by bridge score descending, return top bridges (score > 0)
+  scores.sort((a, b) => b.bridgeScore - a.bridgeScore);
+  return scores.filter((s) => s.bridgeScore > 0).slice(0, 5);
 }
 
 // ============================================================
@@ -255,10 +273,10 @@ async function renderGraph() {
   // Bridges
   const brEl = $('#insight-bridges');
   brEl.innerHTML = bridges.length > 0
-    ? bridges.map((name) => `
-        <div class="insight-item" data-name="${name}">
-          <span class="name">${name}</span>
-          <span class="badge">${connectionCount[name]}</span>
+    ? bridges.map((b) => `
+        <div class="insight-item" data-name="${b.name}">
+          <span class="name">${b.name}</span>
+          <span class="badge" title="2nd° ratio: ${b.secondDegreeRatio.toFixed(1)} | Clustering: ${(b.clusterCoeff * 100).toFixed(0)}%">${b.bridgeScore.toFixed(1)}</span>
         </div>`).join('')
     : '<div style="color:var(--text-muted);font-size:0.8rem">None detected</div>';
 

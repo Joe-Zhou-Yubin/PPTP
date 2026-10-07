@@ -1,0 +1,394 @@
+/* ===== RESET & BASE ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f0f0f;
+  --card-bg: #1a1a1a;
+  --card-border: #2a2a2a;
+  --text: #e8e8e8;
+  --text-muted: #888;
+  --accent: #6c63ff;
+  --accent-hover: #7f78ff;
+  --accent-glow: rgba(108, 99, 255, 0.25);
+  --success: #4caf50;
+  --danger: #ef5350;
+  --radius: 12px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ===== LAYOUT ===== */
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.step {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.step.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ===== CARD ===== */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 2.5rem 3rem;
+  max-width: 720px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.card.center {
+  text-align: center;
+}
+
+.card h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.card h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.card p {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.step-indicator {
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+/* ===== NAME GRID ===== */
+.name-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.name-chip {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  user-select: none;
+}
+
+.name-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.name-chip.selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.name-chip.submitted {
+  border-color: var(--success);
+  opacity: 0.5;
+  position: relative;
+}
+
+.name-chip.submitted::after {
+  content: '✓';
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 0.7rem;
+  color: var(--success);
+}
+
+/* ===== STATUS ===== */
+.status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  min-height: 1.2em;
+}
+
+/* ===== BUTTONS ===== */
+.btn {
+  padding: 0.7rem 1.8rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--card-border);
+}
+
+.btn.secondary:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+.btn.small {
+  padding: 0.4rem 1rem;
+  font-size: 0.8rem;
+  background: var(--card-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+}
+
+.btn.small:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.btn-row {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+/* ===== SPINNER ===== */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--card-border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== GRAPH ===== */
+#step-graph {
+  flex-direction: column;
+  padding: 1rem;
+}
+
+#step-graph.active {
+  display: flex;
+}
+
+.graph-header {
+  text-align: center;
+  padding: 0.8rem 0;
+  flex-shrink: 0;
+}
+
+.graph-header h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.graph-header p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.8rem;
+}
+
+.graph-controls {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+#graph-container {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--card-border);
+  background: #111;
+  overflow: hidden;
+}
+
+#graph-container svg {
+  width: 100%;
+  height: 100%;
+}
+
+.stats-bar {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  padding: 0.8rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.stats-bar .stat-value {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ===== D3 GRAPH ELEMENTS ===== */
+.node circle {
+  stroke: var(--card-border);
+  stroke-width: 1.5px;
+  cursor: pointer;
+  transition: stroke 0.15s;
+}
+
+.node circle:hover {
+  stroke: var(--accent);
+  stroke-width: 2.5px;
+}
+
+.node text {
+  fill: var(--text);
+  font-size: 11px;
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-weight: 500;
+}
+
+.link {
+  stroke: #333;
+  stroke-opacity: 0.6;
+  transition: stroke 0.15s, stroke-opacity 0.15s;
+}
+
+.node.highlighted circle {
+  stroke: var(--accent);
+  stroke-width: 3px;
+}
+
+.node.dimmed circle {
+  opacity: 0.15;
+}
+
+.node.dimmed text {
+  opacity: 0.15;
+}
+
+.link.highlighted {
+  stroke: var(--accent);
+  stroke-opacity: 1;
+}
+
+.link.dimmed {
+  stroke-opacity: 0.05;
+}
+
+/* ===== TOOLTIP ===== */
+.tooltip {
+  position: absolute;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+  max-width: 250px;
+}
+
+.tooltip.visible {
+  opacity: 1;
+}
+
+.tooltip .name {
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.2rem;
+}
+
+.tooltip .connections {
+  color: var(--text-muted);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 600px) {
+  .card {
+    padding: 1.5rem;
+  }
+
+  .name-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .card h1 {
+    font-size: 1.4rem;
+  }
+}
+
+/* ===== SCROLLBAR ===== */
+.card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.card::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 3px;
+}

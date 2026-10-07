@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Social Network — Graph</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="graph.css">
+</head>
+<body class="graph-page">
+
+  <div id="graph-layout">
+
+    <!-- MAIN GRAPH AREA -->
+    <div id="graph-main">
+      <div class="graph-topbar">
+        <h1>Our Class Network</h1>
+        <div class="graph-controls">
+          <button id="btn-refresh" class="btn small">↻ Refresh</button>
+          <button id="btn-reset-view" class="btn small">Reset view</button>
+          <button id="btn-toggle-clusters" class="btn small">Show clusters</button>
+          <button id="btn-toggle-labels" class="btn small">Hide labels</button>
+          <a href="../" class="btn small">← Back to form</a>
+        </div>
+      </div>
+      <div id="graph-container"></div>
+    </div>
+
+    <!-- INSIGHTS SIDEBAR -->
+    <aside id="sidebar">
+      <div class="sidebar-section">
+        <h2>Network Stats</h2>
+        <div id="stats-grid" class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number" id="stat-nodes">—</div>
+            <div class="stat-label">People</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-edges">—</div>
+            <div class="stat-label">Connections</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-density">—</div>
+            <div class="stat-label">Density</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="stat-avg">—</div>
+            <div class="stat-label">Avg connections</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>🌟 Most Connected</h2>
+        <div id="insight-most-connected" class="insight-list"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>🌉 Bridges</h2>
+        <p class="insight-desc">People connecting otherwise separate groups</p>
+        <div id="insight-bridges" class="insight-list"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>🏝️ Isolated</h2>
+        <p class="insight-desc">No connections yet</p>
+        <div id="insight-isolated" class="insight-list"></div>
+      </div>
+
+      <div class="sidebar-section" id="cluster-section" style="display:none">
+        <h2>🎨 Clusters</h2>
+        <p class="insight-desc">Groups of closely connected people</p>
+        <div id="insight-clusters" class="insight-list"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>📊 Connection Ranking</h2>
+        <div id="insight-ranking" class="insight-list"></div>
+      </div>
+    </aside>
+
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="graph.js"></script>
+</body>
+</html>

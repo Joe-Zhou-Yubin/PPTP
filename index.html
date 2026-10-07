@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Social Network</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- STEP 1: Who are you? -->
+    <section id="step-identity" class="step active">
+      <div class="card">
+        <div class="step-indicator">Step 1 of 2</div>
+        <h1>Who are you?</h1>
+        <p>Select your name from the class list below.</p>
+        <div id="name-grid" class="name-grid">
+          <!-- Populated by JS from Google Sheet -->
+        </div>
+        <div id="identity-status" class="status"></div>
+        <button id="btn-next" class="btn primary" disabled>Next →</button>
+      </div>
+    </section>
+
+    <!-- STEP 2: Who have you talked with? -->
+    <section id="step-connections" class="step">
+      <div class="card">
+        <div class="step-indicator">Step 2 of 2</div>
+        <h1>Who have you talked with before?</h1>
+        <p>Select everyone you've spoken to or worked with this term. Pick as many as you like.</p>
+        <div id="connections-grid" class="name-grid">
+          <!-- Populated by JS, excluding the selected user -->
+        </div>
+        <div id="connections-status" class="status"></div>
+        <div class="btn-row">
+          <button id="btn-back" class="btn secondary">← Back</button>
+          <button id="btn-submit" class="btn primary" disabled>Submit →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: Submitting -->
+    <section id="step-loading" class="step">
+      <div class="card center">
+        <div class="spinner"></div>
+        <h2>Submitting your connections…</h2>
+      </div>
+    </section>
+
+    <!-- STEP 4: The graph -->
+    <section id="step-graph" class="step">
+      <div class="graph-header">
+        <h1>Our Class Network</h1>
+        <p id="graph-subtitle">Hover over a node to see connections. Click to highlight.</p>
+        <div class="graph-controls">
+          <button id="btn-refresh" class="btn small">↻ Refresh data</button>
+          <button id="btn-reset-view" class="btn small">Reset view</button>
+        </div>
+      </div>
+      <div id="graph-container"></div>
+      <div id="graph-stats" class="stats-bar"></div>
+    </section>
+
+    <!-- Error state -->
+    <section id="step-error" class="step">
+      <div class="card center">
+        <h2>Something went wrong</h2>
+        <p id="error-message"></p>
+        <button id="btn-retry" class="btn primary">Try again</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- D3.js from CDN -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

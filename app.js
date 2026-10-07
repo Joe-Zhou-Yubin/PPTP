@@ -106,15 +106,13 @@ async function fetchResponses() {
 // ============================================================
 async function submitConnections(source, targets) {
   const payload = { source, targets };
-  const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+  // Use no-cors — we don't need the response, just fire and go
+  await fetch(CONFIG.APPS_SCRIPT_URL, {
     method: 'POST',
+    mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload),
-    redirect: 'follow',
   });
-  // Apps Script redirects to a response URL — follow it
-  const json = await res.json().catch(() => ({ status: 'ok' }));
-  console.log('Submit response:', json);
 }
 
 // ============================================================
@@ -210,7 +208,8 @@ async function handleSubmit() {
   showStep('loading');
   try {
     await submitConnections(selectedIdentity, Array.from(selectedConnections));
-    // Redirect to graph page with the user's name as a param
+    // Small delay to let the POST reach Google, then redirect
+    await new Promise((r) => setTimeout(r, 1000));
     const name = encodeURIComponent(selectedIdentity);
     window.location.href = `graph/?p=${name}`;
   } catch (err) {

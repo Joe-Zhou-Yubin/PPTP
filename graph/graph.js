@@ -477,4 +477,15 @@ async function renderGraph() {
 // ============================================================
 //  INIT
 // ============================================================
-renderGraph();
+renderGraph().then(() => {
+  // If ?p= param is set, highlight that person after graph loads
+  const params = new URLSearchParams(window.location.search);
+  const person = params.get('p');
+  if (person) {
+    // Wait for simulation to settle a bit, then highlight + pan
+    setTimeout(() => {
+      const el = document.querySelector(`.insight-item[data-name="${CSS.escape(person)}"]`);
+      if (el) el.click();
+    }, 1500);
+  }
+});

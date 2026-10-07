@@ -210,10 +210,9 @@ async function handleSubmit() {
   showStep('loading');
   try {
     await submitConnections(selectedIdentity, Array.from(selectedConnections));
-    // Small delay to allow Apps Script to process
-    await new Promise((r) => setTimeout(r, 1500));
-    await initGraph();
-    showStep('graph');
+    // Redirect to graph page with the user's name as a param
+    const name = encodeURIComponent(selectedIdentity);
+    window.location.href = `graph/?p=${name}`;
   } catch (err) {
     showError(`Failed to submit. Error: ${err.message}`);
   }

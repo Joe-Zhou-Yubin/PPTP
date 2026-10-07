@@ -308,8 +308,8 @@ html, body {
 }
 
 .link {
-  stroke: #333;
-  stroke-opacity: 0.6;
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-opacity: 1;
   transition: stroke 0.15s, stroke-opacity 0.15s;
 }
 
@@ -332,7 +332,7 @@ html, body {
 }
 
 .link.dimmed {
-  stroke-opacity: 0.05;
+  stroke-opacity: 0.08;
 }
 
 /* ===== TOOLTIP ===== */

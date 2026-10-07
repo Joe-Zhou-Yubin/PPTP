@@ -59,45 +59,136 @@ async function fetchResponses() {
 }
 
 // ============================================================
-//  CLUSTER DETECTION (simple connected-components + modularity)
+//  CLUSTER DETECTION (label propagation → forced to k groups)
 // ============================================================
+const TARGET_CLUSTERS = 5;
+
 function detectClusters(nodes, edges) {
+  if (nodes.length === 0) return [];
+
   // Build adjacency list
   const adj = {};
-  nodes.forEach((n) => (adj[n.id] = new Set()));
+  nodes.forEach((n) => (adj[n.id] = []));
   edges.forEach(({ source, target }) => {
     const s = typeof source === 'object' ? source.id : source;
     const t = typeof target === 'object' ? target.id : target;
-    adj[s]?.add(t);
-    adj[t]?.add(s);
+    if (adj[s]) adj[s].push(t);
+    if (adj[t]) adj[t].push(s);
   });
 
-  // BFS to find connected components
-  const visited = new Set();
-  const clusters = [];
+  // --- Phase 1: Label propagation ---
+  // Each node starts with its own label. On each pass, adopt the most
+  // common label among your neighbors. Repeat until stable.
+  const label = {};
+  nodes.forEach((n, i) => (label[n.id] = i));
 
+  for (let iter = 0; iter < 20; iter++) {
+    let changed = false;
+    // Shuffle node order each iteration for better convergence
+    const shuffled = [...nodes].sort(() => Math.random() - 0.5);
+
+    shuffled.forEach((n) => {
+      const neighbors = adj[n.id];
+      if (neighbors.length === 0) return;
+
+      // Count label frequencies among neighbors
+      const freq = {};
+      neighbors.forEach((nb) => {
+        const l = label[nb];
+        freq[l] = (freq[l] || 0) + 1;
+      });
+
+      // Pick the most common label (ties broken randomly)
+      let maxCount = 0;
+      let candidates = [];
+      for (const [l, count] of Object.entries(freq)) {
+        if (count > maxCount) { maxCount = count; candidates = [Number(l)]; }
+        else if (count === maxCount) candidates.push(Number(l));
+      }
+
+      const best = candidates[Math.floor(Math.random() * candidates.length)];
+      if (label[n.id] !== best) {
+        label[n.id] = best;
+        changed = true;
+      }
+    });
+
+    if (!changed) break;
+  }
+
+  // Group nodes by label
+  const groupMap = {};
   nodes.forEach((n) => {
-    if (visited.has(n.id)) return;
-    const cluster = [];
-    const queue = [n.id];
-    visited.add(n.id);
-    while (queue.length > 0) {
-      const current = queue.shift();
-      cluster.push(current);
-      adj[current]?.forEach((neighbor) => {
-        if (!visited.has(neighbor)) {
-          visited.add(neighbor);
-          queue.push(neighbor);
+    const l = label[n.id];
+    if (!groupMap[l]) groupMap[l] = [];
+    groupMap[l].push(n.id);
+  });
+
+  let groups = Object.values(groupMap);
+  // Sort largest first
+  groups.sort((a, b) => b.length - a.length);
+
+  // --- Phase 2: Force exactly TARGET_CLUSTERS groups ---
+
+  // If too many groups, merge the smallest ones into the nearest large group
+  while (groups.length > TARGET_CLUSTERS) {
+    const smallest = groups.pop(); // remove smallest
+    // Find which remaining group the smallest has the most connections to
+    let bestGroup = 0;
+    let bestScore = -1;
+    groups.forEach((group, gi) => {
+      const groupSet = new Set(group);
+      let score = 0;
+      smallest.forEach((name) => {
+        adj[name]?.forEach((nb) => { if (groupSet.has(nb)) score++; });
+      });
+      if (score > bestScore) { bestScore = score; bestGroup = gi; }
+    });
+    groups[bestGroup] = groups[bestGroup].concat(smallest);
+    groups.sort((a, b) => b.length - a.length);
+  }
+
+  // If too few groups, split the largest
+  while (groups.length < TARGET_CLUSTERS && groups[0].length >= 2) {
+    const largest = groups.shift();
+
+    // Simple bisection: BFS from a random node to split into two halves
+    const half = Math.ceil(largest.length / 2);
+    const visited = new Set();
+    const queue = [largest[0]];
+    visited.add(largest[0]);
+    const groupA = [];
+    const groupB = [];
+    const largestSet = new Set(largest);
+
+    while (queue.length > 0 && groupA.length < half) {
+      const cur = queue.shift();
+      groupA.push(cur);
+      adj[cur]?.forEach((nb) => {
+        if (!visited.has(nb) && largestSet.has(nb)) {
+          visited.add(nb);
+          queue.push(nb);
         }
       });
     }
-    clusters.push(cluster);
-  });
 
-  // Sort: largest clusters first, isolated nodes last
-  clusters.sort((a, b) => b.length - a.length);
+    // Everything not in groupA goes to groupB
+    largest.forEach((name) => {
+      if (!visited.has(name)) groupB.push(name);
+    });
 
-  return clusters;
+    // If the split actually produced two groups, use them
+    if (groupA.length > 0 && groupB.length > 0) {
+      groups.unshift(groupA, groupB);
+    } else {
+      // Can't split further, put it back
+      groups.unshift(largest);
+      break;
+    }
+    groups.sort((a, b) => b.length - a.length);
+  }
+
+  return groups;
 }
 
 // ============================================================
@@ -232,8 +323,6 @@ async function renderGraph() {
 
   // Clusters
   const clusters = detectClusters(nodes, uniqueEdges);
-  const nonTrivialClusters = clusters.filter((c) => c.length > 1);
-
   // Cluster color palette
   const palette = [
     '#6c63ff', '#ff6b6b', '#51cf66', '#fcc419', '#22b8cf',
@@ -291,15 +380,15 @@ async function renderGraph() {
 
   // Clusters
   const clEl = $('#insight-clusters');
-  clEl.innerHTML = nonTrivialClusters.map((cluster, i) => {
-    const color = palette[clusters.indexOf(cluster) % palette.length];
+  clEl.innerHTML = clusters.map((cluster, i) => {
+    const color = palette[i % palette.length];
     return `
-      <div class="cluster-item" data-cluster="${clusters.indexOf(cluster)}">
+      <div class="cluster-item" data-cluster="${i}">
         <span class="cluster-dot" style="background:${color}"></span>
-        <span>${cluster.slice(0, 3).join(', ')}${cluster.length > 3 ? '…' : ''}</span>
-        <span class="members">${cluster.length} people</span>
+        <span>Group ${i + 1}: ${cluster.slice(0, 3).join(', ')}${cluster.length > 3 ? '…' : ''}</span>
+        <span class="members">${cluster.length}</span>
       </div>`;
-  }).join('') || '<div style="color:var(--text-muted);font-size:0.8rem">Not enough data</div>';
+  }).join('');
 
   // Ranking
   const rankEl = $('#insight-ranking');

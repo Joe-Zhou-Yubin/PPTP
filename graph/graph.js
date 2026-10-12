@@ -66,75 +66,121 @@ const TARGET_CLUSTERS = 5;
 function detectClusters(nodes, edges) {
   if (nodes.length === 0) return [];
 
-  // Build adjacency list
+  // Build adjacency list and degree map
   const adj = {};
-  nodes.forEach((n) => (adj[n.id] = []));
+  const degree = {};
+  nodes.forEach((n) => { adj[n.id] = new Set(); degree[n.id] = 0; });
   edges.forEach(({ source, target }) => {
     const s = typeof source === 'object' ? source.id : source;
     const t = typeof target === 'object' ? target.id : target;
-    if (adj[s]) adj[s].push(t);
-    if (adj[t]) adj[t].push(s);
+    if (adj[s]) { adj[s].add(t); degree[s]++; }
+    if (adj[t]) { adj[t].add(s); degree[t]++; }
   });
 
-  // --- Phase 1: Label propagation ---
-  // Each node starts with its own label. On each pass, adopt the most
-  // common label among your neighbors. Repeat until stable.
-  const label = {};
-  nodes.forEach((n, i) => (label[n.id] = i));
-
-  for (let iter = 0; iter < 20; iter++) {
-    let changed = false;
-    // Shuffle node order each iteration for better convergence
-    const shuffled = [...nodes].sort(() => Math.random() - 0.5);
-
-    shuffled.forEach((n) => {
-      const neighbors = adj[n.id];
-      if (neighbors.length === 0) return;
-
-      // Count label frequencies among neighbors
-      const freq = {};
-      neighbors.forEach((nb) => {
-        const l = label[nb];
-        freq[l] = (freq[l] || 0) + 1;
+  // --- Step 1: Find connected components first ---
+  const visited = new Set();
+  const components = [];
+  nodes.forEach((n) => {
+    if (visited.has(n.id)) return;
+    const comp = [];
+    const queue = [n.id];
+    visited.add(n.id);
+    while (queue.length > 0) {
+      const cur = queue.shift();
+      comp.push(cur);
+      adj[cur]?.forEach((nb) => {
+        if (!visited.has(nb)) { visited.add(nb); queue.push(nb); }
       });
+    }
+    components.push(comp);
+  });
 
-      // Pick the most common label (ties broken randomly)
-      let maxCount = 0;
-      let candidates = [];
-      for (const [l, count] of Object.entries(freq)) {
-        if (count > maxCount) { maxCount = count; candidates = [Number(l)]; }
-        else if (count === maxCount) candidates.push(Number(l));
+  // --- Step 2: Spectral-inspired bisection ---
+  // Use power iteration on the modularity matrix to approximate the
+  // Fiedler vector (2nd eigenvector of the Laplacian). Split on sign.
+  function bisect(members) {
+    if (members.length <= 2) return [members];
+
+    const m = members.length;
+    const totalEdges = edges.length || 1;
+    const memberSet = new Set(members);
+
+    // Random initial vector
+    let vec = members.map(() => Math.random() - 0.5);
+    let norm = Math.sqrt(vec.reduce((s, v) => s + v * v, 0)) || 1;
+    vec = vec.map((v) => v / norm);
+
+    // Power iteration on modularity matrix B = A - (ki*kj)/(2m)
+    // But we only need the leading eigenvector of the modularity submatrix
+    for (let iter = 0; iter < 50; iter++) {
+      const newVec = new Array(m).fill(0);
+      for (let i = 0; i < m; i++) {
+        for (let j = 0; j < m; j++) {
+          if (i === j) continue;
+          const ni = members[i];
+          const nj = members[j];
+          // A_ij - (ki * kj) / (2 * totalEdges)
+          const aij = adj[ni]?.has(nj) ? 1 : 0;
+          const expected = (degree[ni] * degree[nj]) / (2 * totalEdges);
+          newVec[i] += (aij - expected) * vec[j];
+        }
       }
 
-      const best = candidates[Math.floor(Math.random() * candidates.length)];
-      if (label[n.id] !== best) {
-        label[n.id] = best;
-        changed = true;
-      }
-    });
+      // Subtract mean to keep it orthogonal to the all-ones vector
+      const mean = newVec.reduce((s, v) => s + v, 0) / m;
+      for (let i = 0; i < m; i++) newVec[i] -= mean;
 
-    if (!changed) break;
+      norm = Math.sqrt(newVec.reduce((s, v) => s + v * v, 0)) || 1;
+      vec = newVec.map((v) => v / norm);
+    }
+
+    // Split on sign of the vector
+    const groupA = [];
+    const groupB = [];
+    for (let i = 0; i < m; i++) {
+      if (vec[i] >= 0) groupA.push(members[i]);
+      else groupB.push(members[i]);
+    }
+
+    // If bisection failed (everything on one side), force split by median
+    if (groupA.length === 0 || groupB.length === 0) {
+      const sorted = members.slice().sort((a, b) => {
+        const idxA = members.indexOf(a);
+        const idxB = members.indexOf(b);
+        return vec[idxA] - vec[idxB];
+      });
+      const mid = Math.ceil(sorted.length / 2);
+      return [sorted.slice(0, mid), sorted.slice(mid)];
+    }
+
+    return [groupA, groupB];
   }
 
-  // Group nodes by label
-  const groupMap = {};
-  nodes.forEach((n) => {
-    const l = label[n.id];
-    if (!groupMap[l]) groupMap[l] = [];
-    groupMap[l].push(n.id);
-  });
+  // --- Step 3: Recursively bisect until we have TARGET_CLUSTERS ---
+  // Start with connected components as initial groups
+  let groups = components.map((c) => c.slice());
 
-  let groups = Object.values(groupMap);
-  // Sort largest first
+  // Keep splitting the largest group until we reach target
+  while (groups.length < TARGET_CLUSTERS) {
+    // Sort by size, split the largest
+    groups.sort((a, b) => b.length - a.length);
+    const largest = groups.shift();
+
+    if (largest.length < 2) {
+      groups.push(largest);
+      break; // can't split further
+    }
+
+    const parts = bisect(largest);
+    parts.forEach((p) => { if (p.length > 0) groups.push(p); });
+  }
+
+  // If we somehow have more than target (from many components), merge smallest
   groups.sort((a, b) => b.length - a.length);
-
-  // --- Phase 2: Force exactly TARGET_CLUSTERS groups ---
-
-  // If too many groups, merge the smallest ones into the nearest large group
   while (groups.length > TARGET_CLUSTERS) {
-    const smallest = groups.pop(); // remove smallest
-    // Find which remaining group the smallest has the most connections to
-    let bestGroup = 0;
+    const smallest = groups.pop();
+    // Merge into the group with most connections to it
+    let bestIdx = 0;
     let bestScore = -1;
     groups.forEach((group, gi) => {
       const groupSet = new Set(group);
@@ -142,52 +188,13 @@ function detectClusters(nodes, edges) {
       smallest.forEach((name) => {
         adj[name]?.forEach((nb) => { if (groupSet.has(nb)) score++; });
       });
-      if (score > bestScore) { bestScore = score; bestGroup = gi; }
+      if (score > bestScore) { bestScore = score; bestIdx = gi; }
     });
-    groups[bestGroup] = groups[bestGroup].concat(smallest);
-    groups.sort((a, b) => b.length - a.length);
+    groups[bestIdx] = groups[bestIdx].concat(smallest);
   }
 
-  // If too few groups, split the largest
-  while (groups.length < TARGET_CLUSTERS && groups[0].length >= 2) {
-    const largest = groups.shift();
-
-    // Simple bisection: BFS from a random node to split into two halves
-    const half = Math.ceil(largest.length / 2);
-    const visited = new Set();
-    const queue = [largest[0]];
-    visited.add(largest[0]);
-    const groupA = [];
-    const groupB = [];
-    const largestSet = new Set(largest);
-
-    while (queue.length > 0 && groupA.length < half) {
-      const cur = queue.shift();
-      groupA.push(cur);
-      adj[cur]?.forEach((nb) => {
-        if (!visited.has(nb) && largestSet.has(nb)) {
-          visited.add(nb);
-          queue.push(nb);
-        }
-      });
-    }
-
-    // Everything not in groupA goes to groupB
-    largest.forEach((name) => {
-      if (!visited.has(name)) groupB.push(name);
-    });
-
-    // If the split actually produced two groups, use them
-    if (groupA.length > 0 && groupB.length > 0) {
-      groups.unshift(groupA, groupB);
-    } else {
-      // Can't split further, put it back
-      groups.unshift(largest);
-      break;
-    }
-    groups.sort((a, b) => b.length - a.length);
-  }
-
+  // Sort final groups largest first
+  groups.sort((a, b) => b.length - a.length);
   return groups;
 }
 

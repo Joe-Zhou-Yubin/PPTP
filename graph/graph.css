@@ -218,3 +218,47 @@ body.graph-page {
   background: var(--card-border);
   border-radius: 3px;
 }
+
+
+/* ===== METHOD DETAILS TOGGLE ===== */
+.method-details {
+  margin-top: 0.6rem;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.method-details summary {
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+.method-details summary:hover {
+  color: var(--accent);
+}
+
+.method-details[open] summary {
+  border-bottom: 1px solid var(--card-border);
+  color: var(--accent);
+}
+
+.method-details ol {
+  padding: 0.6rem 0.7rem 0.6rem 1.8rem;
+  margin: 0;
+}
+
+.method-details li {
+  margin-bottom: 0.4rem;
+}
+
+.method-details strong {
+  color: var(--text);
+}

@@ -69,8 +69,17 @@
 
       <div class="sidebar-section" id="cluster-section" style="display:none">
         <h2>🎨 Clusters</h2>
-        <p class="insight-desc">Groups of closely connected people</p>
+        <p class="insight-desc">Detected via <strong>spectral bisection</strong> on the modularity matrix. The algorithm finds the axis along which the network splits most naturally — people on opposite sides interact more within their group than across groups. It recursively splits the largest group until exactly 5 clusters emerge. This is the same maths behind Moretti's observation that removing Hamlet reveals the Court vs. anti-Court divide.</p>
         <div id="insight-clusters" class="insight-list"></div>
+        <details class="method-details">
+          <summary>How it works</summary>
+          <ol>
+            <li><strong>Modularity matrix</strong> — For each pair of people, compute: actual connection − expected connection (based on how popular each person is). This highlights surprising connections.</li>
+            <li><strong>Power iteration</strong> — Find the direction along which the modularity signal is strongest. People with opposite signs on this axis belong to different communities.</li>
+            <li><strong>Recursive split</strong> — Split the largest group, repeat until we have 5 groups.</li>
+            <li><strong>Merge tiny groups</strong> — If isolated nodes form extra groups, fold them into whichever group they're closest to.</li>
+          </ol>
+        </details>
       </div>
 
       <div class="sidebar-section">

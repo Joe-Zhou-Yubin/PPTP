@@ -576,6 +576,12 @@ async function renderGraph() {
     btn.classList.toggle('active', showClusters);
     circles.transition().duration(400).attr('fill', getNodeColor);
     $('#cluster-section').style.display = showClusters ? 'block' : 'none';
+    if (showClusters) {
+      // Scroll sidebar to show the cluster section
+      setTimeout(() => {
+        $('#cluster-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
   };
 
   $('#btn-toggle-labels').onclick = () => {
